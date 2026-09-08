@@ -41,7 +41,11 @@
             <h1 class="fw-bold mb-2">Laravel on Vercel</h1>
             <p class="text-secondary mb-3">Serverless Laravel connected to TiDB Cloud MySQL</p>
             <div class="d-flex justify-content-center gap-2">
-                <span class="badge badge-tidb px-3 py-2 rounded-pill"><i class="bi bi-database-check me-1"></i> TiDB MySQL Connected</span>
+                @if($dbConnected)
+                    <span class="badge badge-tidb px-3 py-2 rounded-pill"><i class="bi bi-database-check me-1"></i> TiDB MySQL Connected</span>
+                @else
+                    <span class="badge bg-danger px-3 py-2 rounded-pill"><i class="bi bi-database-x me-1"></i> DB Not Connected</span>
+                @endif
                 <span class="badge bg-success px-3 py-2 rounded-pill"><i class="bi bi-cloud-check me-1"></i> Vercel Live</span>
             </div>
         </div>
@@ -49,6 +53,20 @@
         @if(session('success'))
             <div class="alert alert-success border-0 bg-success bg-opacity-25 text-success-emphasis mb-4">
                 <i class="bi bi-check-circle-fill me-2"></i> {{ session('success') }}
+            </div>
+        @endif
+
+        @if(session('error'))
+            <div class="alert alert-danger border-0 bg-danger bg-opacity-25 text-danger-emphasis mb-4">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i> {{ session('error') }}
+            </div>
+        @endif
+
+        @if(!$dbConnected && isset($dbError))
+            <div class="alert alert-warning border-0 bg-warning bg-opacity-25 text-warning-emphasis mb-4">
+                <div class="fw-bold"><i class="bi bi-exclamation-circle-fill me-1"></i> Database Notice:</div>
+                <small class="font-monospace d-block mt-1">{{ $dbError }}</small>
+                <small class="d-block mt-2">Make sure to add your <code>DB_*</code> environment variables in Vercel Project Settings.</small>
             </div>
         @endif
 

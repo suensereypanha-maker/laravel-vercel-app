@@ -6,12 +6,23 @@ use App\Models\Category;
 use Illuminate\Http\Request;
 
 Route::get('/', function () {
+    $dbConnected = true;
+    $dbError = null;
+
     try {
         $categories = Category::latest()->get();
     } catch (\Throwable $e) {
         $categories = collect();
+        $dbConnected = false;
+        $dbError = $e->getMessage();
     }
-    return view('welcome', compact('categories'));
+
+    return view('welcome', compact('categories', 'dbConnected', 'dbError'));
+});
+
+// Redirect GET /categories to homepage
+Route::get('/categories', function () {
+    return redirect('/');
 });
 
 Route::post('/categories', function (Request $request) {
@@ -19,12 +30,16 @@ Route::post('/categories', function (Request $request) {
         'name' => 'required|max:255',
     ]);
 
-    Category::create([
-        'name' => $request->name,
-        'description' => $request->description,
-    ]);
+    try {
+        Category::create([
+            'name' => $request->name,
+            'description' => $request->description,
+        ]);
 
-    return redirect('/')->with('success', 'Category created successfully in TiDB MySQL!');
+        return redirect('/')->with('success', 'Category created successfully in TiDB MySQL!');
+    } catch (\Throwable $e) {
+        return redirect('/')->with('error', 'Database Error: ' . $e->getMessage());
+    }
 });
 
 // Secure endpoint to run database migrations on Vercel
