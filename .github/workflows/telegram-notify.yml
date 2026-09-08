@@ -2,7 +2,7 @@ name: Telegram Deployment & Push Alerts
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, PanhaDev ]
   deployment_status:
 
 jobs:
@@ -11,42 +11,108 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Send Push Alert to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          AUTHOR: ${{ github.actor }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
         run: |
-          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d "parse_mode=HTML" \
-            --data-urlencode "text=🚀 <b>New Commit Pushed!</b>
+          python3 -c '
+          import os, sys, html, urllib.request, urllib.parse
 
-📦 <b>Repo:</b> ${{ github.repository }}
-🌿 <b>Branch:</b> ${{ github.ref_name }}
-👤 <b>Author:</b> ${{ github.actor }}
-💬 <b>Commit:</b> ${{ github.event.head_commit.message }}
+          token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+          chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
-⏳ <i>Vercel build is in progress...</i>"
+          if not token or not chat_id:
+              print("::error::Missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID secret in GitHub repository settings!")
+              sys.exit(1)
+
+          repo = html.escape(os.environ.get("REPO", ""))
+          branch = html.escape(os.environ.get("BRANCH", ""))
+          author = html.escape(os.environ.get("AUTHOR", ""))
+          commit_msg = html.escape(os.environ.get("COMMIT_MSG", ""))
+
+          text = f"""🚀 <b>New Commit Pushed!</b>
+
+          📦 <b>Repo:</b> {repo}
+          🌿 <b>Branch:</b> {branch}
+          👤 <b>Author:</b> {author}
+          💬 <b>Commit:</b> {commit_msg}
+
+          ⏳ <i>Vercel build is in progress...</i>"""
+
+          text = "\n".join(line.strip() for line in text.splitlines())
+
+          url = f"https://api.telegram.org/bot{token}/sendMessage"
+          data = urllib.parse.urlencode({
+              "chat_id": chat_id,
+              "text": text,
+              "parse_mode": "HTML"
+          }).encode("utf-8")
+
+          req = urllib.request.Request(url, data=data)
+          try:
+              with urllib.request.urlopen(req) as resp:
+                  print("Telegram response:", resp.read().decode("utf-8"))
+          except urllib.error.HTTPError as e:
+              print("::error::Telegram API Error:", e.read().decode("utf-8"))
+              sys.exit(1)
+          '
 
   notify-deploy:
     if: github.event_name == 'deployment_status' && github.event.deployment_status.state != 'pending'
     runs-on: ubuntu-latest
     steps:
       - name: Send Deployment Status Alert to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          STATE: ${{ github.event.deployment_status.state }}
+          TARGET_URL: ${{ github.event.deployment_status.target_url }}
+          REPO: ${{ github.repository }}
+          ENV_NAME: ${{ github.event.deployment.environment }}
         run: |
-          STATE="${{ github.event.deployment_status.state }}"
-          TARGET_URL="${{ github.event.deployment_status.target_url }}"
+          python3 -c '
+          import os, sys, html, urllib.request, urllib.parse
 
-          if [ "$STATE" = "success" ]; then
-            EMOJI="✅"
-            STATUS_TEXT="<b>Vercel Deployment Succeeded!</b>"
-          else
-            EMOJI="❌"
-            STATUS_TEXT="<b>Vercel Deployment Failed!</b>"
-          fi
+          token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+          chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
-          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d "parse_mode=HTML" \
-            --data-urlencode "text=${EMOJI} ${STATUS_TEXT}
+          if not token or not chat_id:
+              print("::error::Missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID secret in GitHub repository settings!")
+              sys.exit(1)
 
-📦 <b>Repo:</b> ${{ github.repository }}
-⚙️ <b>Env:</b> ${{ github.event.deployment.environment }}
-📊 <b>Status:</b> ${STATE}
-🔗 <b>Live URL:</b> ${TARGET_URL}"
+          state = os.environ.get("STATE", "")
+          emoji = "✅" if state == "success" else "❌"
+          status_title = "Vercel Deployment Succeeded!" if state == "success" else "Vercel Deployment Failed!"
+
+          repo = html.escape(os.environ.get("REPO", ""))
+          env_name = html.escape(os.environ.get("ENV_NAME", ""))
+          target_url = os.environ.get("TARGET_URL", "")
+
+          text = f"""{emoji} <b>{status_title}</b>
+
+          📦 <b>Repo:</b> {repo}
+          ⚙️ <b>Env:</b> {env_name}
+          📊 <b>Status:</b> {state}
+          🔗 <b>Live URL:</b> {target_url}"""
+
+          text = "\n".join(line.strip() for line in text.splitlines())
+
+          url = f"https://api.telegram.org/bot{token}/sendMessage"
+          data = urllib.parse.urlencode({
+              "chat_id": chat_id,
+              "text": text,
+              "parse_mode": "HTML"
+          }).encode("utf-8")
+
+          req = urllib.request.Request(url, data=data)
+          try:
+              with urllib.request.urlopen(req) as resp:
+                  print("Telegram response:", resp.read().decode("utf-8"))
+          except urllib.error.HTTPError as e:
+              print("::error::Telegram API Error:", e.read().decode("utf-8"))
+              sys.exit(1)
+          '
