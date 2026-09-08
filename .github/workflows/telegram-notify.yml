@@ -12,11 +12,17 @@ jobs:
     steps:
       - name: Send Push Alert to Telegram
         run: |
-          MSG="🚀 *New Commit Pushed!*%0A%0A📦 *Repo:* \`${{ github.repository }}\`%0A🌿 *Branch:* \`${{ github.ref_name }}\`%0A👤 *Author:* ${{ github.actor }}%0A💬 *Commit:* ${{ github.event.head_commit.message }}%0A%0A⏳ _Vercel build is in progress..._"
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d "text=${MSG}" \
-            -d "parse_mode=Markdown"
+            -d "parse_mode=HTML" \
+            --data-urlencode "text=🚀 <b>New Commit Pushed!</b>
+
+📦 <b>Repo:</b> ${{ github.repository }}
+🌿 <b>Branch:</b> ${{ github.ref_name }}
+👤 <b>Author:</b> ${{ github.actor }}
+💬 <b>Commit:</b> ${{ github.event.head_commit.message }}
+
+⏳ <i>Vercel build is in progress...</i>"
 
   notify-deploy:
     if: github.event_name == 'deployment_status' && github.event.deployment_status.state != 'pending'
@@ -26,18 +32,21 @@ jobs:
         run: |
           STATE="${{ github.event.deployment_status.state }}"
           TARGET_URL="${{ github.event.deployment_status.target_url }}"
-          
+
           if [ "$STATE" = "success" ]; then
             EMOJI="✅"
-            STATUS_TEXT="*Vercel Deployment Succeeded!*"
+            STATUS_TEXT="<b>Vercel Deployment Succeeded!</b>"
           else
             EMOJI="❌"
-            STATUS_TEXT="*Vercel Deployment Failed!*"
+            STATUS_TEXT="<b>Vercel Deployment Failed!</b>"
           fi
 
-          MSG="${EMOJI} ${STATUS_TEXT}%0A%0A📦 *Repo:* \`${{ github.repository }}\`%0A⚙️ *Env:* \`${{ github.event.deployment.environment }}\`%0A📊 *Status:* \`${STATE}\`%0A🔗 *URL:* ${TARGET_URL}"
-          
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d "text=${MSG}" \
-            -d "parse_mode=Markdown"
+            -d "parse_mode=HTML" \
+            --data-urlencode "text=${EMOJI} ${STATUS_TEXT}
+
+📦 <b>Repo:</b> ${{ github.repository }}
+⚙️ <b>Env:</b> ${{ github.event.deployment.environment }}
+📊 <b>Status:</b> ${STATE}
+🔗 <b>Live URL:</b> ${TARGET_URL}"

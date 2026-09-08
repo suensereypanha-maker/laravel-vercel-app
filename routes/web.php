@@ -70,3 +70,8 @@ Route::get('/migrate', function () {
         ], 500);
     }
 });
+
+
+Route::get('/about', function () {
+    return view('about');
+});
