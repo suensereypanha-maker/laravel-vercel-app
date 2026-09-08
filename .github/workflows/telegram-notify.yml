@@ -1,0 +1,43 @@
+name: Telegram Deployment & Push Alerts
+
+on:
+  push:
+    branches: [ main ]
+  deployment_status:
+
+jobs:
+  notify-push:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Push Alert to Telegram
+        run: |
+          MSG="🚀 *New Commit Pushed!*%0A%0A📦 *Repo:* \`${{ github.repository }}\`%0A🌿 *Branch:* \`${{ github.ref_name }}\`%0A👤 *Author:* ${{ github.actor }}%0A💬 *Commit:* ${{ github.event.head_commit.message }}%0A%0A⏳ _Vercel build is in progress..._"
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d "text=${MSG}" \
+            -d "parse_mode=Markdown"
+
+  notify-deploy:
+    if: github.event_name == 'deployment_status' && github.event.deployment_status.state != 'pending'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Deployment Status Alert to Telegram
+        run: |
+          STATE="${{ github.event.deployment_status.state }}"
+          TARGET_URL="${{ github.event.deployment_status.target_url }}"
+          
+          if [ "$STATE" = "success" ]; then
+            EMOJI="✅"
+            STATUS_TEXT="*Vercel Deployment Succeeded!*"
+          else
+            EMOJI="❌"
+            STATUS_TEXT="*Vercel Deployment Failed!*"
+          fi
+
+          MSG="${EMOJI} ${STATUS_TEXT}%0A%0A📦 *Repo:* \`${{ github.repository }}\`%0A⚙️ *Env:* \`${{ github.event.deployment.environment }}\`%0A📊 *Status:* \`${STATE}\`%0A🔗 *URL:* ${TARGET_URL}"
+          
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d "text=${MSG}" \
+            -d "parse_mode=Markdown"
