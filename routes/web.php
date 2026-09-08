@@ -2,9 +2,29 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
+use App\Models\Category;
+use Illuminate\Http\Request;
 
 Route::get('/', function () {
-    return view('welcome');
+    try {
+        $categories = Category::latest()->get();
+    } catch (\Throwable $e) {
+        $categories = collect();
+    }
+    return view('welcome', compact('categories'));
+});
+
+Route::post('/categories', function (Request $request) {
+    $request->validate([
+        'name' => 'required|max:255',
+    ]);
+
+    Category::create([
+        'name' => $request->name,
+        'description' => $request->description,
+    ]);
+
+    return redirect('/')->with('success', 'Category created successfully in TiDB MySQL!');
 });
 
 // Secure endpoint to run database migrations on Vercel
